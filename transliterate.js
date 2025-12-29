@@ -8,10 +8,41 @@ const SCRIPT_MAPPINGS = {};
 function transliterateText(text, targetLang) {
     if (!text || targetLang === 'sa') return text; // Return as-is for Sanskrit
     
+    // CRITICAL: Normalize input to NFC to ensure proper character composition
+    // This prevents vowel marks from being separated from base characters
+    text = text.normalize('NFC');
+    
     const scriptConfig = SCRIPT_MAPPINGS[targetLang];
     if (!scriptConfig || !scriptConfig.mapping) return text; // No mapping available
     
-    let result = text;
+    // Check if text contains HTML tags
+    const hasHTML = /<[^>]+>/.test(text);
+    
+    if (hasHTML) {
+        // Split into HTML tags and text content
+        const parts = text.split(/(<[^>]+>)/);
+        const transliteratedParts = parts.map(part => {
+            // If it's an HTML tag, keep it as-is
+            if (part.startsWith('<')) {
+                return part;
+            }
+            // Otherwise, transliterate the text
+            return transliterateTextContent(part, scriptConfig);
+        });
+        // Normalize output to NFC to ensure proper composition
+        return transliteratedParts.join('').normalize('NFC');
+    } else {
+        // No HTML, transliterate directly and normalize
+        return transliterateTextContent(text, scriptConfig).normalize('NFC');
+    }
+}
+
+// Helper function to transliterate plain text (no HTML)
+function transliterateTextContent(text, scriptConfig) {
+    if (!text) return text;
+    
+    // Normalize input to prevent vowel splitting
+    let result = text.normalize('NFC');
     
     // Handle special combinations first (if defined)
     if (scriptConfig.specialCombinations) {
@@ -94,5 +125,6 @@ function transliterateText(text, targetLang) {
         }
     }
     
-    return result;
+    // Final normalization to ensure proper composition
+    return result.normalize('NFC');
 }
