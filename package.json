@@ -1,6 +1,6 @@
 {
   "name": "devanagari-transliterate",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "description": "Transliterate Devanagari text to various Indic scripts (Kannada, Telugu, and more)",
   "main": "transliterate.js",
   "scripts": {
