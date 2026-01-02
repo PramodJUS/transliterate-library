@@ -4,9 +4,21 @@
 // Registry for all script mappings (populated by individual script files)
 const SCRIPT_MAPPINGS = {};
 
-// Transliterate Devanagari text to target script
+// Cache for transliteration results (if window.PerformanceUtils is available)
+const transliterationMemo = typeof window !== 'undefined' && window.PerformanceUtils 
+    ? new window.PerformanceUtils.LRUCache(200)
+    : null;
+
+// Transliterate Devanagari text to target script (with caching)
 function transliterateText(text, targetLang) {
     if (!text || targetLang === 'sa') return text; // Return as-is for Sanskrit
+    
+    // Check cache first
+    if (transliterationMemo) {
+        const cacheKey = `${targetLang}:${text.substring(0, 100)}`; // Use first 100 chars as key
+        const cached = transliterationMemo.get(cacheKey);
+        if (cached) return cached;
+    }
     
     // CRITICAL: Normalize input to NFC to ensure proper character composition
     // This prevents vowel marks from being separated from base characters
@@ -18,6 +30,7 @@ function transliterateText(text, targetLang) {
     // Check if text contains HTML tags
     const hasHTML = /<[^>]+>/.test(text);
     
+    let result;
     if (hasHTML) {
         // Split into HTML tags and text content
         const parts = text.split(/(<[^>]+>)/);
@@ -30,11 +43,19 @@ function transliterateText(text, targetLang) {
             return transliterateTextContent(part, scriptConfig);
         });
         // Normalize output to NFC to ensure proper composition
-        return transliteratedParts.join('').normalize('NFC');
+        result = transliteratedParts.join('').normalize('NFC');
     } else {
         // No HTML, transliterate directly and normalize
-        return transliterateTextContent(text, scriptConfig).normalize('NFC');
+        result = transliterateTextContent(text, scriptConfig).normalize('NFC');
     }
+    
+    // Cache the result
+    if (transliterationMemo) {
+        const cacheKey = `${targetLang}:${text.substring(0, 100)}`;
+        transliterationMemo.set(cacheKey, result);
+    }
+    
+    return result;
 }
 
 // Helper function to transliterate plain text (no HTML)
